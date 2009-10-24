@@ -5,54 +5,54 @@ zh-CN:
     user: 用户
     email: 电子邮件
     phone: 电话
-    mobile: Mobile
-    profile: Profile
-    my: My
-    edit_profile_link: Edit profile
-    upload_picture_link: Upload picture
-    change_password_link: Change password
-    change_password_button: Change Password
-    current_password: Current password
-    new_password: New password
-    password_confirmation: Confirm new password
-    first_name: First name
-    last_name: Last name
-    job_title: Title
-    company: Company
-    contact_info_title: Contact Information
-    alt_email: Alternative email
-    aim: AOL IM
-    yahoo: Yahoo IM
-    google: Google IM
+    mobile: 手机
+    profile: 个人信息
+    my: 我的
+    edit_profile_link: 编辑个人信息
+    upload_picture_link: 上传照片
+    change_password_link: 修改密码
+    change_password_button: 修改密码
+    current_password: 当前密码
+    new_password: 新密码
+    password_confirmation: 确认新密码
+    first_name: 姓
+    last_name: 名
+    job_title: 头衔
+    company: 公司
+    contact_info_title: 联系人信息
+    alt_email: 备选email
+    aim: AOL
+    yahoo: Yahoo
+    google: Google talk
     skype: Skype
-    save_profile_button: Save Profile
-    image_help: The image file you upload will be automatically resized to 75 x 75 pixels. Supported formats are GIF, JPG, and PNG.
-    image_file: Image file
-    use_gravatar_link: Use Gravatar
-    gravatar_help: Not familiar with Gravatars? Learn about Gravatars
-    here: here
-    upload_picture_button: Upload Picture
+    save_profile_button: 保存个人信息
+    image_help: 您上传的图片将自动调整到75x75像素。支持GIF,JPG和PNG格式。
+    image_file: 图片文件
+    use_gravatar_link: 使用Gravatar
+    gravatar_help: 不了解Gravatars? 学习Gravatars
+    here: 这里
+    upload_picture_button: 上传图片
     login_now_link: 马上登录！
     username: 用户名
     password: 密码
-    sign_up_button: Sign Up
-    sign_up_title: Sign Up
-    already_signed_up: Already signed up?
+    sign_up_button: 注册
+    sign_up_title: 注册
+    already_signed_up: 已经注册过？
 
   # auth:
-    login: Login
-    no_account: Do not have an account?
-    sign_up_now: Sign Up Now!
-    forgot_password: Forgot Password?
-    remember_me: Remember Me
+    login: 登录
+    no_account: 还没有登录帐号？
+    sign_up_now: 现在注册！
+    forgot_password: 忘记密码？
+    remember_me: 记住登录
 
   # accounts:
     accounts: Accounts
-    added: added
-    ago: ago
-    by: by
-    me: me
-    phone_small: phone
+    added: 已新增
+    ago: 以前
+    by: 由
+    me: 我
+    phone_small: 电话
     edit: 修改
     delete: 删除
     create_task_title: 任务
@@ -61,31 +61,31 @@ zh-CN:
     create_account_button: Create Account
     save_account_button: Save Account
     account_name: Account name
-    assigned_to: Assigned to
+    assigned_to: 分派给
     website: 站点
     phone_toll_free: 电话 (toll-free)
     fax: 传真
-    billing_address: Billing address
-    shipping_address: Shipping address
-    same_as_billing_link: same as billing
+    billing_address: 帐单地址
+    shipping_address: 发货地址
+    same_as_billing_link: 与帐单地址一致
     permissions_title: Permissions
-    account_permissions_intro: "By default only you will have access to the account. You can change account permissions later."
-    private_txt: Keep it private, do not share with others
-    public_txt: Share it with everyone
-    shared_txt: Share it with the following people
+    account_permissions_intro: "默认只有您才能操作，你可以以后修改权限设置。"
+    private_txt: 这是私有信息，不共享给他人
+    public_txt: 共享给所有人
+    shared_txt: 和以下人共享
 
     inline:
       contact:
-        one: '1 contact'
-        other: '{{count}} contacts'
+        one: '一个联系人'
+        other: '{{count}}个联系人'
       opportunity:
-        one: '1 opportunity'
-        other: '{{count}} opportunities'
+        one: '一个商机'
+        other: '{{count}}个商机'
 
   # home:
 
   # generic:
-    not_implemented: Not implemented yet.
+    not_implemented: 还没有实现。
 
 
 
