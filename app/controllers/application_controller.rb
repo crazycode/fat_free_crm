@@ -35,14 +35,10 @@ class ApplicationController < ActionController::Base
     ActiveSupport::TimeZone[session[:timezone_offset]] if session[:timezone_offset]
     ActionMailer::Base.default_url_options[:host] = request.host_with_port
     I18n.locale = Setting.locale if Setting.locale
-
-    # HACK: this is a temporary hack until we add :locale attribute to User model.
-    session[:locale] = params[:lang] unless params[:lang].blank?
-    I18n.locale = session[:locale]
   end
 
   #----------------------------------------------------------------------------
-  def set_current_tab(tab = controller_name.to_sym)
+  def set_current_tab(tab = controller_name)
     @current_tab = tab
   end
 
@@ -58,6 +54,9 @@ class ApplicationController < ActionController::Base
   #----------------------------------------------------------------------------
   def current_user
     @current_user ||= (current_user_session && current_user_session.record)
+    if @current_user && @current_user.preference[:locale]
+      I18n.locale = @current_user.preference[:locale]
+    end
     User.current_user = @current_user
   end
   
@@ -65,7 +64,7 @@ class ApplicationController < ActionController::Base
   def require_user
     unless current_user
       store_location
-      flash[:notice] = "You must be logged in to access this page." if request.request_uri != "/"
+      flash[:notice] = t(:msg_login_needed) if request.request_uri != "/"
       redirect_to login_url
       false
     end
@@ -75,7 +74,7 @@ class ApplicationController < ActionController::Base
   def require_no_user
     if current_user
       store_location
-      flash[:notice] = "You must be logged out to access this page."
+      flash[:notice] = t(:msg_logout_needed)
       redirect_to profile_url
       false
     end
@@ -128,9 +127,9 @@ class ApplicationController < ActionController::Base
       else self.action_name
     end
     if self.action_name == "show"
-      flash[:warning] = "This #{asset} is no longer available."
+      flash[:warning] = t(:msg_asset_not_available, asset)
     else
-      flash[:warning] = "Can't #{flick} the #{asset} since it's no longer available."
+      flash[:warning] = t(:msg_cant_do, :action => flick, :asset => asset)
     end
     respond_to do |format|
       format.html { redirect_to(:action => :index) }                         if types.include?(:html)
@@ -143,7 +142,7 @@ class ApplicationController < ActionController::Base
   def respond_to_related_not_found(related, *types)
     asset = self.controller_name.singularize
     asset = "note" if asset == "comment"
-    flash[:warning] = "Can't create the #{asset} since the #{related} is no longer available."
+    flash[:warning] = t(:msg_cant_create_related, :asset => asset, :related => related)
     url = send("#{related.pluralize}_path")
     respond_to do |format|
       format.html { redirect_to(url) }                                       if types.include?(:html)

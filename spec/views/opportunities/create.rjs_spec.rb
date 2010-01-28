@@ -5,7 +5,7 @@ describe "/opportunities/create.js.rjs" do
 
   before(:each) do
     login_and_assign
-    assigns[:stage] = {}
+    assigns[:stage] = Setting.unroll(:opportunity_stage)
   end
 
   describe "create success" do
@@ -39,6 +39,17 @@ describe "/opportunities/create.js.rjs" do
       render "opportunities/create.js.rjs"
 
       response.should have_rjs("paginate")
+    end
+
+    it "should update related campaign sidebar when called from related campaign" do
+      assigns[:campaign] = campaign = Factory(:campaign)
+      request.env["HTTP_REFERER"] = "http://localhost/campaigns/#{campaign.id}"
+      render "opportunities/create.js.rjs"
+
+      response.should have_rjs("sidebar") do |rjs|
+        with_tag("div[class=panel][id=summary]")
+        with_tag("div[class=panel][id=recently]")
+      end
     end
 
     it "should update recently viewed items when called from related asset" do

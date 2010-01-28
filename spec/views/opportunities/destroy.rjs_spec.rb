@@ -6,6 +6,8 @@ describe "/opportunities/destroy.js.rjs" do
   before(:each) do
     login_and_assign
     assigns[:opportunity] = @opportunity = Factory(:opportunity)
+    assigns[:stage] = Setting.unroll(:opportunity_stage)
+    assigns[:opportunity_stage_total] = { :prospecting => 1, "Custom" => 1 }
   end
 
   it "should blind up destroyed opportunity partial" do
@@ -30,6 +32,17 @@ describe "/opportunities/destroy.js.rjs" do
     render "opportunities/destroy.js.rjs"
 
     response.should have_rjs("paginate")
+  end
+
+  it "should update related campaign sidebar when called from related campaign" do
+    assigns[:campaign] = campaign = Factory(:campaign)
+    request.env["HTTP_REFERER"] = "http://localhost/campaigns/#{campaign.id}"
+    render "opportunities/destroy.js.rjs"
+
+    response.should have_rjs("sidebar") do |rjs|
+      with_tag("div[class=panel][id=summary]")
+      with_tag("div[class=panel][id=recently]")
+    end
   end
 
   it "should update recently viewed items when called from related asset" do

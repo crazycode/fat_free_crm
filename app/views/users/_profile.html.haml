@@ -20,7 +20,7 @@
           %td{ :valign => :top }
             .label.top #{t:company}:
             = f.text_field :company, :style => "width:240px"
-    .subtitle #{t:contact_info_title}
+    .subtitle #{t:contact_info}
     .section
       %table{ :width => 500, :cellpadding => 0, :cellspacing => 0 }
         %tr
@@ -57,7 +57,7 @@
             = f.text_field :skype, :style => "width:112px"
 
     .buttonbar
-      = f.submit t:save_profile_button
-      or
+      = f.submit t:save_profile
+      #{t:or}
       = link_to_cancel edit_user_path(@user)
 %br

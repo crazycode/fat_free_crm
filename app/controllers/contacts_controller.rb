@@ -39,7 +39,7 @@ class ContactsController < ApplicationController
   #----------------------------------------------------------------------------
   def show
     @contact = Contact.my(@current_user).find(params[:id])
-    @stage = Setting.as_hash(:opportunity_stage)
+    @stage = Setting.unroll(:opportunity_stage)
     @comment = Comment.new
 
     respond_to do |format|
@@ -185,7 +185,6 @@ class ContactsController < ApplicationController
       @per_page = @current_user.pref[:contacts_per_page] || Contact.per_page
       @outline  = @current_user.pref[:contacts_outline]  || Contact.outline
       @sort_by  = @current_user.pref[:contacts_sort_by]  || Contact.sort_by
-      @sort_by  = Contact::SORT_BY.invert[@sort_by]
       @naming   = @current_user.pref[:contacts_naming]   || Contact.first_name_position
     end
   end
@@ -198,9 +197,9 @@ class ContactsController < ApplicationController
 
     # Sorting and naming only: set the same option for Leads if the hasn't been set yet.
     if params[:sort_by]
-      @current_user.pref[:contacts_sort_by] = Contact::SORT_BY[params[:sort_by]]
-      if Lead::SORT_BY.keys.include?(params[:sort_by])
-        @current_user.pref[:leads_sort_by] ||= Lead::SORT_BY[params[:sort_by]]
+      @current_user.pref[:contacts_sort_by] = Contact::sort_by_map[params[:sort_by]]
+      if Lead::sort_by_fields.include?(params[:sort_by])
+        @current_user.pref[:leads_sort_by] ||= Lead::sort_by_map[params[:sort_by]]
       end
     end
     if params[:naming]
@@ -254,7 +253,7 @@ class ContactsController < ApplicationController
       # At this point render destroy.js.rjs
     else
       self.current_page = 1
-      flash[:notice] = "#{@contact.full_name} has beed deleted."
+      flash[:notice] = t(:msg_asset_deleted, @contact.full_name)
       redirect_to(contacts_path)
     end
   end

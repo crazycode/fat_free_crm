@@ -100,6 +100,8 @@ class LeadsController < ApplicationController
         if called_from_index_page?
           @leads = get_leads
           get_data_for_sidebar
+        else
+          get_data_for_sidebar(:campaign)
         end
         format.js   # create.js.rjs
         format.xml  { render :xml => @lead, :status => :created, :location => @lead }
@@ -118,7 +120,7 @@ class LeadsController < ApplicationController
 
     respond_to do |format|
       if @lead.update_with_permissions(params[:lead], params[:users])
-        get_data_for_sidebar if called_from_index_page?
+        update_sidebar
         format.js
         format.xml  { head :ok }
       else
@@ -158,7 +160,7 @@ class LeadsController < ApplicationController
     @users = User.except(@current_user).all
     @account = Account.new(:user => @current_user, :name => @lead.company, :access => "Lead")
     @accounts = Account.my(@current_user).all(:order => "name")
-    @opportunity = Opportunity.new(:user => @current_user, :access => "Lead", :stage => "prospecting")
+    @opportunity = Opportunity.new(:user => @current_user, :access => "Lead", :stage => "prospecting", :campaign => @lead.campaign, :source => @lead.source)
     if params[:previous] =~ /(\d+)\z/
       @previous = Lead.my(@current_user).find($1)
     end
@@ -176,11 +178,12 @@ class LeadsController < ApplicationController
     @users = User.except(@current_user).all
     @account, @opportunity, @contact = @lead.promote(params)
     @accounts = Account.my(@current_user).all(:order => "name")
+    @stage = Setting.unroll(:opportunity_stage)
 
     respond_to do |format|
       if @account.errors.empty? && @opportunity.errors.empty? && @contact.errors.empty?
         @lead.convert
-        get_data_for_sidebar if called_from_index_page?
+        update_sidebar
         format.js   # promote.js.rjs
         format.xml  { head :ok }
       else
@@ -199,10 +202,10 @@ class LeadsController < ApplicationController
   def reject
     @lead = Lead.my(@current_user).find(params[:id])
     @lead.reject if @lead
-    get_data_for_sidebar if called_from_index_page?
+    update_sidebar
 
     respond_to do |format|
-      format.html { flash[:notice] = "#{@lead.full_name} has beed rejected."; redirect_to(leads_path) }
+      format.html { flash[:notice] = t(:msg_asset_rejected, @lead.full_name); redirect_to(leads_path) }
       format.js   # reject.js.rjs
       format.xml  { head :ok }
     end
@@ -233,7 +236,6 @@ class LeadsController < ApplicationController
       @per_page = @current_user.pref[:leads_per_page] || Lead.per_page
       @outline  = @current_user.pref[:leads_outline]  || Lead.outline
       @sort_by  = @current_user.pref[:leads_sort_by]  || Lead.sort_by
-      @sort_by  = Lead::SORT_BY.invert[@sort_by]
       @naming   = @current_user.pref[:leads_naming]   || Lead.first_name_position
     end
   end
@@ -246,9 +248,9 @@ class LeadsController < ApplicationController
 
     # Sorting and naming only: set the same option for Contacts if the hasn't been set yet.
     if params[:sort_by]
-      @current_user.pref[:leads_sort_by] = Lead::SORT_BY[params[:sort_by]]
-      if Contact::SORT_BY.keys.include?(params[:sort_by])
-        @current_user.pref[:contacts_sort_by] ||= Contact::SORT_BY[params[:sort_by]]
+      @current_user.pref[:leads_sort_by] = Lead::sort_by_map[params[:sort_by]]
+      if Contact::sort_by_fields.include?(params[:sort_by])
+        @current_user.pref[:contacts_sort_by] ||= Contact::sort_by_map[params[:sort_by]]
       end
     end
     if params[:naming]
@@ -308,22 +310,36 @@ class LeadsController < ApplicationController
         end
       else                                        # Called from related asset.
         self.current_page = 1                     # Reset current page to 1 to make sure it stays valid.
+        @campaign = @lead.campaign                # Reload lead's campaign if any.
       end                                         # Render destroy.js.rjs
     else # :html destroy
       self.current_page = 1
-      flash[:notice] = "#{@lead.full_name} has beed deleted."
+      flash[:notice] = t(:msg_asset_deleted, @lead.full_name)
       redirect_to(leads_path)
     end
   end
 
   #----------------------------------------------------------------------------
-  def get_data_for_sidebar
-    @lead_status_total = { :all => Lead.my(@current_user).count, :other => 0 }
-    Setting.lead_status.keys.each do |key|
-      @lead_status_total[key] = Lead.my(@current_user).count(:conditions => [ "status=?", key.to_s ])
-      @lead_status_total[:other] -= @lead_status_total[key]
+  def get_data_for_sidebar(related = false)
+    if related
+      instance_variable_set("@#{related}", @lead.send(related)) if called_from_landing_page?(related.to_s.pluralize)
+    else
+      @lead_status_total = { :all => Lead.my(@current_user).count, :other => 0 }
+      Setting.lead_status.each do |key|
+        @lead_status_total[key] = Lead.my(@current_user).count(:conditions => [ "status=?", key.to_s ])
+        @lead_status_total[:other] -= @lead_status_total[key]
+      end
+      @lead_status_total[:other] += @lead_status_total[:all]
     end
-    @lead_status_total[:other] += @lead_status_total[:all]
+  end
+
+  #----------------------------------------------------------------------------
+  def update_sidebar
+    if called_from_index_page?
+      get_data_for_sidebar
+    else
+      get_data_for_sidebar(:campaign)
+    end
   end
 
 end

@@ -80,7 +80,7 @@ class Task < ActiveRecord::Base
   acts_as_paranoid
 
   validates_presence_of :user_id
-  validates_presence_of :name, :message => "^Please specify task name."
+  validates_presence_of :name, :message => :missing_task_name
   validates_presence_of :calendar, :if => "self.bucket == 'specific_time' && !self.completed_at"
   validate              :specific_time, :unless => "self.completed_at"
 
@@ -129,7 +129,7 @@ class Task < ActiveRecord::Base
   #----------------------------------------------------------------------------
   def self.find_all_grouped(user, view)
     settings = (view == "completed" ? Setting.task_completed : Setting.task_bucket)
-    settings.inject({}) do |hash, (value, key)|
+    settings.inject({}) do |hash, key|
       hash[key] = (view == "assigned" ? assigned_by(user).send(key).pending : my(user).send(key).send(view))
       hash
     end
@@ -150,7 +150,7 @@ class Task < ActiveRecord::Base
   #----------------------------------------------------------------------------
   def self.totals(user, view = "pending")
     settings = (view == "completed" ? Setting.task_completed : Setting.task_bucket)
-    settings.inject({ :all => 0 }) do |hash, (value, key)|
+    settings.inject({ :all => 0 }) do |hash, key|
       hash[key] = (view == "assigned" ? assigned_by(user).send(key).pending.count : my(user).send(key).send(view).count)
       hash[:all] += hash[key]
       hash
@@ -191,7 +191,7 @@ class Task < ActiveRecord::Base
   #----------------------------------------------------------------------------
   def specific_time
     if (self.bucket == "specific_time") && (self.calendar !~ %r[\d{2}/\d{2}/\d{4}])
-      errors.add(:calendar, "^Please specify valid date.")
+      errors.add(:calendar, :invalid_date)
     end
   end
 

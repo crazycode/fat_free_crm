@@ -65,29 +65,20 @@ class Lead < ActiveRecord::Base
   uses_user_permissions
   acts_as_commentable
   acts_as_paranoid
+  sortable :by => [ "first_name ASC", "last_name ASC", "company ASC", "rating DESC", "created_at DESC", "updated_at DESC" ], :default => "created_at DESC"
 
-  validates_presence_of :first_name, :message => "^Please specify first name."
-  validates_presence_of :last_name, :message => "^Please specify last name."
+  validates_presence_of :first_name, :message => :missing_first_name
+  validates_presence_of :last_name, :message => :missing_last_name
   validate :users_for_shared_access
 
   after_create  :increment_leads_count
   after_destroy :decrement_leads_count
 
-  SORT_BY = {
-    "first name"   => "leads.first_name ASC",
-    "last name"    => "leads.last_name ASC",
-    "company"      => "leads.company ASC",
-    "rating"       => "leads.rating DESC",
-    "date created" => "leads.created_at DESC",
-    "date updated" => "leads.updated_at DESC"
-  }
-
   # Default values provided through class methods.
   #----------------------------------------------------------------------------
-  def self.per_page ;  20                      ; end
-  def self.outline  ;  "long"                  ; end
-  def self.sort_by  ;  "leads.created_at DESC" ; end
-  def self.first_name_position ;  "before"     ; end
+  def self.per_page ; 20                  ; end
+  def self.outline  ; "long"              ; end
+  def self.first_name_position ; "before" ; end
 
   # Save the lead along with its permissions.
   #----------------------------------------------------------------------------
@@ -97,6 +88,19 @@ class Lead < ActiveRecord::Base
       save_with_model_permissions(Campaign.find(self.campaign_id))
     else
       super(params[:users]) # invoke :save_with_permissions in plugin.
+    end
+  end
+
+  # Update lead attributes taking care of campaign lead counters when necessary.
+  #----------------------------------------------------------------------------
+  def update_with_permissions(attributes, users)
+    if self.campaign_id == attributes[:campaign_id] # Same campaign (if any).
+      super(attributes, users)                      # See lib/fat_free_crm/permissions.rb
+    else                                            # Campaign has been changed -- update lead counters...
+      decrement_leads_count                         # ..for the old campaign...
+      lead = super(attributes, users)               # Assign new campaign.
+      increment_leads_count                         # ...and now for the new campaign.
+      lead
     end
   end
 
@@ -149,7 +153,7 @@ class Lead < ActiveRecord::Base
   # Make sure at least one user has been selected if the lead is being shared.
   #----------------------------------------------------------------------------
   def users_for_shared_access
-    errors.add(:access, "^Please specify users to share the lead with.") if self[:access] == "Shared" && !self.permissions.any?
+    errors.add(:access, :share_lead) if self[:access] == "Shared" && !self.permissions.any?
   end
 
 end

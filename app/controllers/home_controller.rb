@@ -17,7 +17,7 @@
 
 class HomeController < ApplicationController
   before_filter :require_user, :except => [ :toggle, :timezone ]
-  before_filter "set_current_tab(:dashboard)", :only => :index
+  before_filter "set_current_tab('/')", :only => :index
   before_filter "hook(:home_before_filter, self, :amazing => true)"
 
   #----------------------------------------------------------------------------
@@ -34,7 +34,7 @@ class HomeController < ApplicationController
     unless params[:cancel] == "true"
       @asset = @current_user.pref[:activity_asset] || "all"
       @user = @current_user.pref[:activity_user] || "all users"
-      @duration = @current_user.pref[:activity_duration] || "two days"
+      @duration = @current_user.pref[:activity_duration] || "two_days"
     end
   end
 
@@ -111,7 +111,7 @@ class HomeController < ApplicationController
   def activity_duration
     duration = @current_user.pref[:activity_duration]
     if duration
-      words = duration.split # "two weeks" => 2.weeks
+      words = duration.split("_") # "two_weeks" => 2.weeks
       if %w(one two).include?(words.first)
         %w(zero one two).index(words.first).send(words.last)
       end

@@ -53,33 +53,22 @@ class Opportunity < ActiveRecord::Base
   named_scope :assigned_to, lambda { |user| { :conditions => "assigned_to = #{user.id}" } }
 
   simple_column_search :name, :match => :middle, :escape => lambda { |query| query.gsub(/[^\w\s\-\.']/, "").strip }
-
   uses_user_permissions
   acts_as_commentable
   acts_as_paranoid
+  sortable :by => [ "name ASC", "amount DESC", "amount*probability DESC", "probability DESC", "closes_on ASC", "created_at DESC", "updated_at DESC" ], :default => "created_at DESC"
 
-  validates_presence_of :name, :message => "^Please specify the opportunity name."
+  validates_presence_of :name, :message => :missing_opportunity_name
   validates_numericality_of [ :probability, :amount, :discount ], :allow_nil => true
   validate :users_for_shared_access
 
   after_create  :increment_opportunities_count
   after_destroy :decrement_opportunities_count
 
-  SORT_BY = {
-    "name"            => "opportunities.name ASC",
-    "amount"          => "opportunities.amount DESC",
-    "weighted amount" => "opportunities.amount * opportunities.probability DESC",
-    "probability"     => "opportunities.probability DESC",
-    "closing date"    => "opportunities.closes_on ASC",
-    "date created"    => "opportunities.created_at DESC",
-    "date updated"    => "opportunities.updated_at DESC"
-  }
-
   # Default values provided through class methods.
   #----------------------------------------------------------------------------
-  def self.per_page ;  20                              ; end
-  def self.outline  ;  "long"                          ; end
-  def self.sort_by  ;  "opportunities.created_at DESC" ; end
+  def self.per_page ; 20     ; end
+  def self.outline  ; "long" ; end
 
   #----------------------------------------------------------------------------
   def weighted_amount
@@ -127,7 +116,7 @@ class Opportunity < ActiveRecord::Base
   # Make sure at least one user has been selected if the contact is being shared.
   #----------------------------------------------------------------------------
   def users_for_shared_access
-    errors.add(:access, "^Please specify users to share the opportunity with.") if self[:access] == "Shared" && !self.permissions.any?
+    errors.add(:access, :share_opportunity) if self[:access] == "Shared" && !self.permissions.any?
   end
 
   #----------------------------------------------------------------------------

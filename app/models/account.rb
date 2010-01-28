@@ -49,26 +49,19 @@ class Account < ActiveRecord::Base
   named_scope :assigned_to, lambda { |user| { :conditions => "assigned_to = #{user.id}" } }
 
   simple_column_search :name, :match => :middle, :escape => lambda { |query| query.gsub(/[^\w\s\-\.']/, "").strip }
-
   uses_user_permissions
   acts_as_commentable
   acts_as_paranoid
+  sortable :by => [ "name ASC", "created_at DESC", "updated_at DESC" ], :default => "created_at DESC"
 
-  validates_presence_of :name, :message => "^Please specify account name."
+  validates_presence_of :name, :message => :missing_account_name
   validates_uniqueness_of :name
   validate :users_for_shared_access
 
-  SORT_BY = {
-    "name"         => "accounts.name ASC",
-    "date created" => "accounts.created_at DESC",
-    "date updated" => "accounts.updated_at DESC"
-  }
-
   # Default values provided through class methods.
   #----------------------------------------------------------------------------
-  def self.per_page ;  20                         ; end
-  def self.outline  ;  "long"                     ; end
-  def self.sort_by  ;  "accounts.created_at DESC" ; end
+  def self.per_page ; 20     ; end
+  def self.outline  ; "long" ; end
 
   # Extract last line of billing address and get rid of numeric zipcode.
   #----------------------------------------------------------------------------
@@ -98,7 +91,7 @@ class Account < ActiveRecord::Base
   # Make sure at least one user has been selected if the account is being shared.
   #----------------------------------------------------------------------------
   def users_for_shared_access
-    errors.add(:access, "^Please specify users to share the account with.") if self[:access] == "Shared" && !self.permissions.any?
+    errors.add(:access, :share_account) if self[:access] == "Shared" && !self.permissions.any?
   end
 
 end

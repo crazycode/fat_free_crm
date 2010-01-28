@@ -19,8 +19,8 @@ module ApplicationHelper
 
   def tabs(tabs = FatFreeCRM::Tabs.main)
     if tabs
-      @current_tab ||= tabs.first[:text].downcase.to_sym # Select first tab by default.
-      tabs.each { |tab| tab[:active] = (tab[:text].downcase.to_sym == @current_tab || tab[:url][:controller].to_sym == @current_tab) }
+      @current_tab ||= tabs.first[:text] # Select first tab by default.
+      tabs.each { |tab| tab[:active] = (@current_tab == tab[:text] || @current_tab == tab[:url][:controller]) }
     else
       raise RuntimeError.new("Tab settings are missing, please run 'rake crm:setup'")
     end
@@ -79,7 +79,7 @@ module ApplicationHelper
   #----------------------------------------------------------------------------
   def link_to_edit(model)
     name = model.class.name.downcase
-    link_to_remote("Edit",
+    link_to_remote(t(:edit),
       :method => :get,
       :url    => send("edit_#{name}_path", model),
       :with   => "{ previous: crm.find_form('edit_#{name}') }"
@@ -89,7 +89,7 @@ module ApplicationHelper
   #----------------------------------------------------------------------------
   def link_to_delete(model)
     name = model.class.name.downcase
-    link_to_remote("Delete!",
+    link_to_remote(t(:delete) + "!",
       :method => :delete,
       :url    => send("#{name}_path", model),
       :before => visual_effect(:highlight, dom_id(model), :startcolor => "#ffe4e1")
@@ -98,13 +98,13 @@ module ApplicationHelper
 
   #----------------------------------------------------------------------------
   def link_to_cancel(url)
-    link_to_remote("Cancel", :url => url, :method => :get, :with => "{ cancel: true }")
+    link_to_remote(t(:cancel), :url => url, :method => :get, :with => "{ cancel: true }")
   end
 
   #----------------------------------------------------------------------------
   def link_to_close(url)
     content_tag("div", "x",
-      :class => "close", :title => "Close form",
+      :class => "close", :title => t(:close_form),
       :onmouseover => "this.style.background='lightsalmon'",
       :onmouseout => "this.style.background='lightblue'",
       :onclick => remote_function(:url => url, :method => :get, :with => "{ cancel: true }")
@@ -161,9 +161,9 @@ module ApplicationHelper
 
   #----------------------------------------------------------------------------
   def confirm_delete(model)
-    question = %(<span class="warn">Are you sure you want to delete this #{model.class.to_s.downcase}?</span>)
-    yes = link_to("Yes", model, :method => :delete)
-    no = link_to_function("No", "$('menu').update($('confirm').innerHTML)")
+    question = %(<span class="warn">#{t(:confirm_delete, model.class.to_s.downcase)}</span>)
+    yes = link_to(t(:yes_button), model, :method => :delete)
+    no = link_to_function(t(:no_button), "$('menu').update($('confirm').innerHTML)")
     update_page do |page|
       page << "$('confirm').update($('menu').innerHTML)"
       page[:menu].replace_html "#{question} #{yes} : #{no}"
@@ -175,18 +175,18 @@ module ApplicationHelper
     image_tag "1x1.gif", :width => width, :height => 1, :alt => nil
   end
 
-  #----------------------------------------------------------------------------
-  def time_ago(whenever)
-    distance_of_time_in_words(Time.now, whenever) << " ago"
-  end
-
+  # Reresh sidebar using the action view within the current controller.
   #----------------------------------------------------------------------------
   def refresh_sidebar(action = nil, shake = nil)
+    refresh_sidebar_for(controller.controller_name, action, shake)
+  end
+
+  # Refresh sidebar using the action view within an arbitrary controller.
+  #----------------------------------------------------------------------------
+  def refresh_sidebar_for(view, action = nil, shake = nil)
     update_page do |page|
-      page[:sidebar].replace_html :partial => "layouts/sidebar", :locals => { :action => action }
-      if shake
-        page[shake].visual_effect :shake, :duration => 0.4, :distance => 3
-      end
+      page[:sidebar].replace_html :partial => "layouts/sidebar", :locals => { :view => view, :action => action }
+      page[shake].visual_effect(:shake, :duration => 0.4, :distance => 3) if shake
     end
   end
 
@@ -197,7 +197,7 @@ module ApplicationHelper
       url = person.send(site)
       unless url.blank?
         url = "http://" << url unless url.match(/^https?:\/\//)
-        links << link_to(image_tag("#{site}.gif", :size => "15x15"), url, :popup => true, :title => "Open #{url} in a new window")
+        links << link_to(image_tag("#{site}.gif", :size => "15x15"), url, :popup => true, :title => t(:open_in_window, url))
       end
       links
     end.join("\n")
@@ -206,13 +206,29 @@ module ApplicationHelper
   # Ajax helper to refresh current index page once the user selects an option.
   #----------------------------------------------------------------------------
   def redraw(option, value, url = nil)
+    if value.is_a?(Array)
+      param, value = value.first, value.last
+    end
     remote_function(
       :url       => url || send("redraw_#{controller.controller_name}_path"),
-      :with      => "{ #{option}: '#{value}' }",
+      :with      => "{ #{option}: '#{param || value}' }",
       :condition => "$('#{option}').innerHTML != '#{value}'",
       :loading   => "$('#{option}').update('#{value}'); $('loading').show()",
       :complete  => "$('loading').hide()"
     )
+  end
+
+  #----------------------------------------------------------------------------
+  def options_menu_item(option, key, url = nil)
+    name = t("option_#{key}")
+    "{ name: \"#{name.titleize}\", on_select: function() {" +
+    remote_function(
+      :url       => url || send("redraw_#{controller.controller_name}_path"),
+      :with      => "{ #{option}: '#{key}' }",
+      :condition => "$('#{option}').innerHTML != '#{name}'",
+      :loading   => "$('#{option}').update('#{name}'); $('loading').show()",
+      :complete  => "$('loading').hide()"
+    ) + "}}"
   end
 
   # Ajax helper to pass browser timezone offset to the server.
@@ -227,15 +243,43 @@ module ApplicationHelper
   end
 
   #----------------------------------------------------------------------------
+  def activate_facebox
+    %Q/document.observe("dom:loaded", function() { new Facebox('#{Setting.base_url}'); });/
+  end
+
+  # Users can upload their avatar, and if it's missing we're going to use
+  # gravatar. For leads and contacts we always use gravatars.
+  #----------------------------------------------------------------------------
   def avatar_for(model, args = {})
     args[:size]  ||= "75x75"
     args[:class] ||= "gravatar"
     if model.avatar
       image_tag(model.avatar.image.url(Avatar.styles[args[:size]]), args)
     elsif model.email
-      gravatar(model.email, { :default => "#{request.protocol + request.host_with_port}" + Setting.base_url.to_s + "/images/avatar.jpg" }.merge(args))
+      gravatar(model.email, { :default => default_avatar_url }.merge(args))
     else
       image_tag("avatar.jpg", args)
     end
   end
+
+  # Add default avatar image and invoke original :gravatar_for defined by the
+  # gravatar plugin (see vendor/plugins/gravatar/lib/gravatar.rb)
+  #----------------------------------------------------------------------------
+  def gravatar_for(model, args = {})
+    super(model, { :default => default_avatar_url }.merge(args))
+  end
+
+  #----------------------------------------------------------------------------
+  def default_avatar_url
+    "#{request.protocol + request.host_with_port}" + Setting.base_url.to_s + "/images/avatar.jpg"
+  end
+
+  # Returns true if partial template exists. Note that the file name of the
+  # partial starts with underscore.
+  #----------------------------------------------------------------------------
+  def partial_exist?(partial, extension = '.html.haml')
+    filename = partial.sub(%r{/([^/]*)$}, '/_\\1') + extension
+    FileTest.exist?(File.join(RAILS_ROOT, 'app', 'views', filename))
+  end
+
 end

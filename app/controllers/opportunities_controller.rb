@@ -18,7 +18,7 @@
 class OpportunitiesController < ApplicationController
   before_filter :require_user
   before_filter :set_current_tab, :only => [ :index, :show ]
-  before_filter :load_settings, :except => [ :new, :destroy ]
+  before_filter :load_settings
   before_filter :get_data_for_sidebar, :only => :index
   before_filter :auto_complete, :only => :auto_complete
   after_filter  :update_recently_viewed, :only => :show
@@ -101,6 +101,8 @@ class OpportunitiesController < ApplicationController
         if called_from_index_page?
           @opportunities = get_opportunities
           get_data_for_sidebar
+        else
+          get_data_for_sidebar(:campaign)
         end
         format.js   # create.js.rjs
         format.xml  { render :xml => @opportunity, :status => :created, :location => @opportunity }
@@ -132,7 +134,11 @@ class OpportunitiesController < ApplicationController
 
     respond_to do |format|
       if @opportunity.update_with_account_and_permissions(params)
-        get_data_for_sidebar if called_from_index_page?
+        if called_from_index_page?
+          get_data_for_sidebar
+        else
+          get_data_for_sidebar(:campaign)
+        end
         format.js
         format.xml  { head :ok }
       else
@@ -191,7 +197,6 @@ class OpportunitiesController < ApplicationController
       @per_page = @current_user.pref[:opportunities_per_page] || Opportunity.per_page
       @outline  = @current_user.pref[:opportunities_outline]  || Opportunity.outline
       @sort_by  = @current_user.pref[:opportunities_sort_by]  || Opportunity.sort_by
-      @sort_by  = Opportunity::SORT_BY.invert[@sort_by]
     end
   end
 
@@ -200,7 +205,7 @@ class OpportunitiesController < ApplicationController
   def redraw
     @current_user.pref[:opportunities_per_page] = params[:per_page] if params[:per_page]
     @current_user.pref[:opportunities_outline]  = params[:outline]  if params[:outline]
-    @current_user.pref[:opportunities_sort_by]  = Opportunity::SORT_BY[params[:sort_by]] if params[:sort_by]
+    @current_user.pref[:opportunities_sort_by]  = Opportunity::sort_by_map[params[:sort_by]] if params[:sort_by]
     @opportunities = get_opportunities(:page => 1)
     render :action => :index
   end
@@ -253,29 +258,33 @@ class OpportunitiesController < ApplicationController
         end
       else # Called from related asset.
         self.current_page = 1
+        @campaign = @opportunity.campaign # Reload related campaign if any.
       end
       # At this point render destroy.js.rjs
     else
       self.current_page = 1
-      flash[:notice] = "#{@opportunity.name} has beed deleted."
+      flash[:notice] = t(:msg_asset_deleted, @opportunity.name)
       redirect_to(opportunities_path)
     end
   end
 
   #----------------------------------------------------------------------------
-  def get_data_for_sidebar
-    load_settings
-    @opportunity_stage_total = { :all => Opportunity.my(@current_user).count, :other => 0 }
-    @stage.keys.each do |key|
-      @opportunity_stage_total[key] = Opportunity.my(@current_user).count(:conditions => [ "stage=?", key.to_s ])
-      @opportunity_stage_total[:other] -= @opportunity_stage_total[key]
+  def get_data_for_sidebar(related = false)
+    if related
+      instance_variable_set("@#{related}", @opportunity.send(related)) if called_from_landing_page?(related.to_s.pluralize)
+    else
+      @opportunity_stage_total = { :all => Opportunity.my(@current_user).count, :other => 0 }
+      @stage.each do |value, key|
+        @opportunity_stage_total[key] = Opportunity.my(@current_user).count(:conditions => [ "stage=?", key.to_s ])
+        @opportunity_stage_total[:other] -= @opportunity_stage_total[key]
+      end
+      @opportunity_stage_total[:other] += @opportunity_stage_total[:all]
     end
-    @opportunity_stage_total[:other] += @opportunity_stage_total[:all]
   end
 
   #----------------------------------------------------------------------------
   def load_settings
-    @stage = Setting.as_hash(:opportunity_stage)
+    @stage = Setting.unroll(:opportunity_stage)
   end
 
 end
